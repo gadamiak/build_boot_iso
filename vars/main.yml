@@ -1,0 +1,33 @@
+---
+# vars file for roles/build_boot_iso:
+
+# Script and kickstart files
+bbi_scripts:
+  # The full path to the kickstart file in the local filesystem
+  ks: ~/kickstart/ks.cfg
+  # The absolute path to the kickstart dir in the destination ISO
+  path: /kickstart
+
+# Files from the source image to be customized
+bbi_files:
+  iso: isolinux/isolinux.cfg
+  grub: EFI/BOOT/grub.cfg
+  efi: images/efiboot.img
+
+# Substitutions to be done on files
+bbi_regex:
+  - # Set default boot menu item for legacy boot
+    regexp: '^\s*menu default\s*\n'
+    replace: ''
+  - # Set default boot menu item for UEFI boot
+    regexp: '^(set default=).*'
+    replace: '\g<1>"0"'
+  - # Set boot menu timeout for legacy boot
+    regexp: '(^timeout ).*'
+    replace: '\g<1>50'
+  - # Set boot menu timeout for UEFI boot
+    regexp: '(^set timeout=).*'
+    replace: '\g<1>5'
+  - # Replace disc label and set kickstart path for legacy boot
+    regexp: '(.*)(hd:LABEL=\S+)(.*)'
+    replace: '\1\2 inst.ks=\2:{{ bbi_scripts.path }}/{{ bbi_scripts.ks | basename }}\3'

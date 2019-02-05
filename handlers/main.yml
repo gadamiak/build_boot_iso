@@ -1,0 +1,17 @@
+---
+# handlers file for roles/build_boot_iso
+
+- name: Unmount
+  command: umount "{{ item.path }}" warn=false
+  become: true
+  loop:
+    - "{{ _efi }}"
+  listen: "Clean up"
+- name: Remove temporary directories
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop:
+    - "{{ _boot }}"
+    - "{{ _efi }}"
+  listen: "Clean up"

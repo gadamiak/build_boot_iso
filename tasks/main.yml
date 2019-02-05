@@ -1,0 +1,67 @@
+---
+# tasks file for roles/build_boot_iso
+
+- name: Install required software
+  yum:
+    name:
+      - xorriso
+    state: present
+
+- name: Extract boot files from the source ISO
+  block:
+    - name: Create a temporary directory for boot files
+      tempfile:
+        state: directory
+        suffix: .boot
+      register: _boot
+    - name: Extract boot files from the source ISO
+      command: >
+        osirrox
+        -indev {{ bbi_iso.src }}
+        -extract_l '' {{ _boot.path }} {{ bbi_files.values() | join(' ') }}
+    - name: Reset permissions of extracted boot files
+      file:
+        recurse: yes
+        path: "{{ _boot.path }}"
+        mode: 'ug+w'
+
+- name: Modify boot files
+  block:
+    - name: Modify boot menu files
+      replace:
+        path: "{{ _boot.path }}/{{ item.0 }}"
+        regexp: "{{ item.1.regexp }}"
+        replace: "{{ item.1.replace }}"
+      loop: "{{ bbi_files.values() | product(bbi_regex) | list }}"
+      when: item.0 != "{{ bbi_files.efi }}"
+    - name: Create a temporary mountpoint for the EFI image
+      tempfile:
+        state: directory
+        suffix: .efi
+      register: _efi
+    - name: Mount the EFI image
+      command: mount -o loop {{ _boot.path }}/{{ bbi_files.efi }}
+        {{ _efi.path }} warn=false
+      become: true
+    - name: Update the EFI image
+      copy:
+        src: "{{ _boot.path }}/{{ bbi_files.grub }}"
+        dest: "{{ _efi.path }}/{{ bbi_files.grub }}"
+      become: true
+
+- name: Build the customized ISO image
+  block:
+    - name: Delete the customized ISO image leftover
+      file:
+        path: "{{ bbi_iso.dst }}"
+        state: absent
+    - name: Build the customized ISO image
+      command: >
+          xorriso
+          -indev {{ bbi_iso.src }}
+          -map {{ bbi_scripts.ks | dirname | expandvars | expanduser | quote }}
+            {{ bbi_scripts.path }}
+          -map {{ _boot.path }} /
+          -boot_image any replay
+          -outdev {{ bbi_iso.dst }}
+      notify: "Clean up"
