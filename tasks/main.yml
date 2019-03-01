@@ -33,7 +33,7 @@
         regexp: "{{ item.1.regexp }}"
         replace: "{{ item.1.replace }}"
       loop: "{{ bbi_files.values() | product(bbi_regex) | list }}"
-      when: item.0 != "{{ bbi_files.efi }}"
+      when: item.0 != bbi_files.efi
     - name: Create a temporary mountpoint for the EFI image
       tempfile:
         state: directory
