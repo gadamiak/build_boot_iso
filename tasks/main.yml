@@ -6,6 +6,7 @@
     name:
       - xorriso
     state: present
+  become: true
 
 - name: Extract boot files from the source ISO
   block:
